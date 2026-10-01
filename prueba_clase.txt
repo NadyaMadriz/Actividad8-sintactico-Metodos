@@ -1,0 +1,28 @@
+package act8_s_metodos;
+
+import java.util;
+
+class Calculadora {
+    int total = 0;
+    final int MAXIMO = 100;
+
+    int sumar(int a, int b) {
+        retornar a + b;
+    }
+
+    void mostrar(int valor) {
+        escribir("Valor: ", valor);
+    }
+
+    void proceso() {
+        int r;
+        r = sumar(5, 10);
+        mostrar(r);
+
+        si (r > MAXIMO) {
+            escribir("grande");
+        } sino {
+            escribir("normal");
+        }
+    }
+}

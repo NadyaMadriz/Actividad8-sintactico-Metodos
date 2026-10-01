@@ -1,0 +1,11 @@
+int sumar(int a, int b) {
+    retornar;
+}
+
+void mostrar(int x) {
+    retornar x;
+}
+
+void salir() {
+    retornar;
+}

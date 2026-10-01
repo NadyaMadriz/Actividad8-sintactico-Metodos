@@ -1,0 +1,17 @@
+void iniciar( {
+    escribir("Inicio");
+}
+
+int sumar(int a,, int b) {
+    retornar a + b;
+}
+
+void mostrar(int valor {
+    escribir(valor);
+}
+
+void proceso() {
+    iniciar;
+    sumar(a,,b);
+    mostrar(;
+}

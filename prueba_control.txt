@@ -1,0 +1,21 @@
+int calcular(int a, int b) {
+    resultado = a + b;
+
+    si (resultado > 100) {
+        resultado = resultado * 2;
+    } sino {
+        resultado = resultado + 10;
+    }
+
+    retornar resultado;
+}
+
+void proceso() {
+    resultado = calcular(20, 30);
+
+    mientras (resultado < 100) {
+        resultado = resultado + 10;
+    }
+
+    escribir(resultado);
+}

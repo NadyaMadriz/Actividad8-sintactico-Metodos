@@ -1,0 +1,17 @@
+int sumar(int a, int b) {
+    retornar a + b;
+}
+
+void proceso() {
+    sumar(10, 20);
+    sumar(a, b);
+    sumar(a + 1, b * 2);
+
+    sumar(10);
+    sumar(10, 20, 30);
+    sumar(, 20);
+    sumar(10, );
+    sumar(a,, b);
+    sumar(a, b;
+    resultado = sumar(10);
+}

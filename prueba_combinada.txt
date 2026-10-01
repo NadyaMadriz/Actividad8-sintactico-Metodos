@@ -1,0 +1,37 @@
+boolean esMayor(int a, int b) {
+    retornar a > b;
+}
+
+float calcularPromedio(float a, float b) {
+    retornar (a + b) / 2;
+}
+
+int esPar(int numero) {
+    retornar numero % 2 == 0;
+}
+
+int calcular(int numero) {
+    resultado = 0;
+
+    si (esPar(numero)) {
+        resultado = numero * 2;
+    } sino {
+        resultado = numero + 1;
+    }
+
+    retornar resultado;
+}
+
+void proceso() {
+    promedio = calcularPromedio(4.5, 5.5);
+    total = calcular(3) + calcular(4);
+
+    si (esMayor(total, 10)) {
+        escribir("Total mayor que 10");
+    }
+
+    para (i = 0; i < 10; i = i + 1) {
+        resultado = calcular(i);
+        escribir(resultado);
+    }
+}

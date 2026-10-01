@@ -1,0 +1,13 @@
+int sumar(int a, int b) {
+    retornar a + b;
+}
+
+int calcular(int x, int y) {
+    resultado = sumar(x, y);
+    retornar resultado * 2;
+}
+
+void proceso() {
+    total = calcular(10, 20);
+    escribir(total);
+}

@@ -1,0 +1,8 @@
+void metodoConErrorLexico() {
+    @
+    escribir("El analisis continua despues del error lexico");
+}
+
+void metodoValido() {
+    escribir("Metodo valido reconocido");
+}

@@ -1,0 +1,24 @@
+void iniciar() {
+    escribir("Inicio del programa");
+}
+
+void mostrar(int valor) {
+    escribir(valor);
+}
+
+int sumar(int a, int b) {
+    retornar a + b;
+}
+
+int obtenerValor() {
+    retornar 100;
+}
+
+void proceso() {
+    iniciar();
+    mostrar(10);
+    resultado = sumar(5, 10);
+    valor = obtenerValor();
+    escribir(resultado);
+    escribir(valor);
+}

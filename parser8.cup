@@ -1,0 +1,508 @@
+package act8_s_metodos;
+
+import java_cup.runtime.*;
+
+parser code {:
+
+  /* ---- Posicion del ultimo error sintactico (para mostrar linea y columna de la causa) ---- */
+  private int errLinea = 0;
+  private int errColumna = 0;
+
+  /* ---- Informacion para validar las llamadas a metodos (Actividad 8) ---- */
+  public java.util.HashMap<String, Integer> metodos = new java.util.HashMap<String, Integer>();
+  private java.util.ArrayList<Object[]> llamadas = new java.util.ArrayList<Object[]>();
+  private java.util.ArrayList<int[]> retornosVacios = new java.util.ArrayList<int[]>();
+  private java.util.ArrayList<int[]> retornosConValor = new java.util.ArrayList<int[]>();
+  public int erroresSintacticos = 0;
+  public int erroresLexicos = 0;
+  public int erroresSemanticos = 0;
+
+  public void report_error(String message, Object info) {
+    String tokenStr = "desconocido";
+    int linea = 0;
+    int columna = 0;
+
+    if (info instanceof Symbol) {
+      Symbol simbolo = (Symbol) info;
+      linea = simbolo.left;
+      columna = simbolo.right;
+      tokenStr = (simbolo.value != null) ? simbolo.value.toString() : "EOF";
+    }
+
+    errLinea = linea;
+    errColumna = columna;
+    erroresSintacticos++;
+
+    System.out.println("Error sintactico en linea " + linea + ", columna " + columna
+      + ": token inesperado '" + tokenStr + "'.");
+    if (message != null && !message.isEmpty() && !"Syntax error".equals(message)) {
+      System.out.println("Detalle: " + message);
+    }
+  }
+
+  public void report_fatal_error(String message, Object info) throws Exception {
+    report_error(message, info);
+    throw new Exception("Error fatal en el analisis sintactico.");
+  }
+
+  /* Causa especifica del error (se imprime despues del mensaje generico) */
+  public void causa(String texto) {
+    System.out.println("Causa: " + texto + " (linea " + errLinea + ", columna " + errColumna + ")");
+  }
+
+  /* Error sintactico detectado directamente por una regla (no pasa por report_error) */
+  public void errorEn(int linea, int columna, String texto) {
+    erroresSintacticos++;
+    System.out.println("Error sintactico en linea " + linea + ", columna " + columna + ":");
+    System.out.println("Descripcion: " + texto);
+  }
+
+  public void errorLexico() {
+    erroresLexicos++;
+  }
+
+  /* Suma de elementos de una lista; -1 significa "lista con error" */
+  public int combinar(int a, int b) {
+    if (a < 0 || b < 0) {
+      return -1;
+    }
+    return a + b;
+  }
+
+  /* ---------- Metodos ---------- */
+  public void metodoReconocido(String nombre, int nParams, boolean esVoid) {
+    if (nParams != 0) {
+      System.out.println("Regla reconocida: lista_parametros");
+    }
+    System.out.println("Regla reconocida: " + (nParams == 0 ? "metodo_sin_parametros" : "metodo_con_parametros"));
+    System.out.println("Regla reconocida: " + (esVoid ? "metodo_sin_retorno" : "metodo_con_retorno"));
+
+    if (nParams >= 0 && !metodos.containsKey(nombre)) {
+      metodos.put(nombre, Integer.valueOf(nParams));
+    }
+
+    for (int[] r : retornosVacios) {
+      if (!esVoid) {
+        errorEn(r[0], r[1], "se esperaba una expresion despues de 'retornar' (el metodo '" + nombre + "' debe devolver un valor).");
+      }
+    }
+    for (int[] r : retornosConValor) {
+      if (esVoid) {
+        erroresSemanticos++;
+        System.out.println("Error semantico en linea " + r[0] + ", columna " + r[1] + ":");
+        System.out.println("el metodo '" + nombre + "' es void y no puede retornar un valor.");
+      }
+    }
+    retornosVacios.clear();
+    retornosConValor.clear();
+
+    System.out.println("Metodo reconocido.");
+  }
+
+  public void metodoConError(String texto) {
+    causa(texto);
+    retornosVacios.clear();
+    retornosConValor.clear();
+  }
+
+  public void retornoVacio(int linea, int col) {
+    retornosVacios.add(new int[] { linea, col });
+  }
+
+  public void retornoConValor(int linea, int col) {
+    retornosConValor.add(new int[] { linea, col });
+  }
+
+  /* ---------- Llamadas ---------- */
+  public void llamadaReconocida(String nombre, int nArgs, int linea, int col) {
+    if (nArgs != 0) {
+      System.out.println("Regla reconocida: lista_argumentos");
+    }
+    System.out.println("Regla reconocida: llamada_metodo (" + nombre + ")");
+    if (nArgs >= 0) {
+      llamadas.add(new Object[] { nombre, Integer.valueOf(nArgs), Integer.valueOf(linea), Integer.valueOf(col) });
+    }
+  }
+
+  /* Validacion de cantidad de argumentos (se ejecuta al terminar el analisis) */
+  public void validarLlamadas() {
+    System.out.println();
+    System.out.println("=== Validacion de llamadas (cantidad de argumentos) ===");
+    int antes = erroresSemanticos;
+    for (Object[] c : llamadas) {
+      String nombre = (String) c[0];
+      int recibidos = ((Integer) c[1]).intValue();
+      int linea = ((Integer) c[2]).intValue();
+      int col = ((Integer) c[3]).intValue();
+      Integer requeridos = metodos.get(nombre);
+      if (requeridos != null && requeridos.intValue() != recibidos) {
+        erroresSemanticos++;
+        System.out.println("Error semantico en linea " + linea + ", columna " + col + ":");
+        System.out.println("el metodo '" + nombre + "' requiere " + requeridos + " "
+          + (requeridos.intValue() == 1 ? "argumento" : "argumentos")
+          + " y se recibieron " + recibidos + ".");
+      }
+    }
+    if (erroresSemanticos > antes) {
+      System.out.println("Se encontraron inconsistencias semanticas en las llamadas o retornos.");
+    } else if (erroresSintacticos > 0 || erroresLexicos > 0) {
+      System.out.println("No se detectaron inconsistencias semanticas entre las llamadas recuperadas, "
+        + "pero hubo " + erroresSintacticos + " error(es) sintactico(s) y "
+        + erroresLexicos + " error(es) lexico(s); el archivo no puede considerarse valido.");
+    } else {
+      System.out.println("Todas las llamadas reconocidas coinciden con la definicion del metodo.");
+    }
+  }
+:};
+
+terminal PAQUETE, IMPORTAR, CLASE, FINAL, VOID, LEER, ESCRIBIR, RETORNAR;
+terminal SI, SINO, SEGUN, CASO, DEFECTO, ROMPER, MIENTRAS, HACER, PARA;
+terminal INT, FLOAT, DOUBLE, CHAR, BOOLEAN, STRING;
+terminal VERDADERO, FALSO;
+terminal PUNTO_COMA, DOS_PUNTOS, PUNTO, LLAVE_A, LLAVE_C, PAREN_A,
+PAREN_C, COMA, IGUAL;
+terminal MAYOR, MENOR, MAYOR_IGUAL, MENOR_IGUAL, IGUAL_IGUAL, DIFERENTE;
+terminal MAS, MENOS, POR, DIV, MOD, Y, O, NO;
+terminal String IDENTIFICADOR, NUMERO, DECIMAL, CADENA, CARACTER;
+terminal ERROR_LEXICO;
+
+non terminal archivo, paquete, importaciones, importacion, ubicacion;
+non terminal clase_principal, cuerpo_clase, miembro, atributo, constante;
+non terminal metodo, lista_metodos, cuerpo_metodo, sentencia, lectura, escritura, asignacion;
+non terminal retorno, llamada;
+non terminal lista_identificadores, lista_elementos, elemento;
+non terminal tipo, identificador, valor, opt_inicializacion, expresion;
+non terminal bloque, condicion;
+non terminal seleccion_simple, seleccion_doble, seleccion_multiple, lista_casos, caso_item,
+defecto_item;
+non terminal ciclo_mientras, ciclo_hacer_mientras, ciclo_para, actualizacion;
+non terminal Integer lista_parametros, parametro, lista_argumentos;
+
+/* De menor a mayor precedencia. Los operadores relacionales ahora forman parte de
+   expresion para poder usar "retornar a > b;" y llamadas dentro de condiciones. */
+precedence left O;
+precedence left Y;
+precedence left IGUAL_IGUAL, DIFERENTE;
+precedence left MAYOR, MENOR, MAYOR_IGUAL, MENOR_IGUAL;
+precedence left MAS, MENOS;
+precedence left POR, DIV, MOD;
+precedence right NO;
+
+start with archivo;
+
+archivo ::= paquete importaciones clase_principal
+      | paquete clase_principal
+      | importaciones clase_principal
+      | clase_principal
+      | lista_metodos
+      ;
+
+paquete ::= PAQUETE ubicacion PUNTO_COMA ;
+
+importaciones ::= importacion
+          | importacion importaciones
+          ;
+
+importacion ::= IMPORTAR ubicacion PUNTO_COMA ;
+
+ubicacion ::= IDENTIFICADOR
+       | ubicacion PUNTO IDENTIFICADOR
+       ;
+
+clase_principal ::= CLASE IDENTIFICADOR LLAVE_A LLAVE_C
+               {: System.out.println("Clase vacia reconocida."); :}
+            | CLASE IDENTIFICADOR LLAVE_A cuerpo_clase LLAVE_C
+               {: System.out.println("Clase con miembros reconocida."); :}
+            ;
+
+cuerpo_clase ::= miembro cuerpo_clase
+        | miembro
+        ;
+
+miembro ::= atributo
+      | constante
+      | metodo
+      | error PUNTO_COMA
+           {: System.out.println("Declaracion invalida recuperada; se continua con el siguiente miembro."); :}
+      ;
+
+atributo ::= tipo lista_identificadores opt_inicializacion PUNTO_COMA
+           {: System.out.println("Atributo o variable reconocido."); :}
+       ;
+
+constante ::= FINAL tipo identificador IGUAL valor PUNTO_COMA
+          {: System.out.println("Constante reconocida."); :}
+       | FINAL tipo identificador PUNTO_COMA
+          {: System.out.println("Error: la constante debe inicializarse."); :}
+       ;
+
+opt_inicializacion ::= IGUAL valor
+              | /* empty */
+              ;
+
+/* ============================================================
+   ACTIVIDAD 8: METODOS
+   metodo -> tipo_retorno IDENTIFICADOR '(' parametros_optativos ')' bloque
+   (tipo_retorno = void | tipo)
+   ============================================================ */
+
+/* Archivo formado solo por metodos (uno o varios) */
+lista_metodos ::= metodo
+        | lista_metodos metodo
+        ;
+
+metodo ::= VOID IDENTIFICADOR:n PAREN_A PAREN_C bloque
+         {: parser.metodoReconocido(n, 0, true); :}
+
+    | VOID IDENTIFICADOR:n PAREN_A lista_parametros:p PAREN_C bloque
+         {: parser.metodoReconocido(n, p.intValue(), true); :}
+
+    | tipo IDENTIFICADOR:n PAREN_A PAREN_C bloque
+         {: parser.metodoReconocido(n, 0, false); :}
+
+    | tipo IDENTIFICADOR:n PAREN_A lista_parametros:p PAREN_C bloque
+         {: parser.metodoReconocido(n, p.intValue(), false); :}
+
+    /* ---- Errores en la definicion del metodo ---- */
+    | VOID IDENTIFICADOR error bloque
+         {: parser.metodoConError("se esperaba '(' despues del nombre del metodo."); :}
+
+    | VOID IDENTIFICADOR PAREN_A error bloque
+         {: parser.metodoConError("se esperaba ')' o una lista de parametros valida."); :}
+
+    | VOID IDENTIFICADOR PAREN_A lista_parametros error bloque
+         {: parser.metodoConError("se esperaba ',' o ')' en la lista de parametros."); :}
+
+    | tipo IDENTIFICADOR PAREN_A error bloque
+         {: parser.metodoConError("se esperaba ')' o una lista de parametros valida."); :}
+
+    | tipo IDENTIFICADOR PAREN_A lista_parametros error bloque
+         {: parser.metodoConError("se esperaba ',' o ')' en la lista de parametros."); :}
+    ;
+
+/* parametros -> parametro | parametros ',' parametro
+   parametro  -> tipo identificador                      */
+lista_parametros ::= parametro:p
+         {: RESULT = p; :}
+
+    | lista_parametros:l COMA parametro:p
+         {: RESULT = Integer.valueOf(parser.combinar(l.intValue(), p.intValue())); :}
+
+    | lista_parametros COMA error
+         {: parser.causa("se esperaba un parametro despues de ','.");
+            RESULT = Integer.valueOf(-1); :}
+    ;
+
+parametro ::= tipo identificador
+         {: RESULT = Integer.valueOf(1); :}
+
+    | tipo error
+         {: parser.causa("se esperaba un identificador para el parametro.");
+            RESULT = Integer.valueOf(-1); :}
+    ;
+
+/* Bloque limpio: el cuerpo del metodo puede estar vacio o tener sentencias, evitando
+conflictos */
+bloque ::= LLAVE_A cuerpo_metodo LLAVE_C
+           {: System.out.println("Regla reconocida: bloque"); :}
+      | error LLAVE_C
+          {: System.out.println("Error en bloque recuperado."); :}
+     ;
+
+cuerpo_metodo ::= sentencia cuerpo_metodo
+        | /* empty */
+        ;
+
+sentencia ::= lectura
+       | escritura
+       | asignacion
+       | atributo
+       | retorno
+       | seleccion_simple
+       | seleccion_doble
+       | seleccion_multiple
+       | ciclo_mientras
+       | ciclo_hacer_mientras
+       | ciclo_para
+       | ERROR_LEXICO
+          {: parser.errorLexico(); :}
+
+       /* llamada utilizada como sentencia */
+       | llamada PUNTO_COMA
+          {: System.out.println("Regla reconocida: llamada_como_sentencia"); :}
+
+       /* ---- Errores en llamadas ---- */
+       | IDENTIFICADOR:n PUNTO_COMA
+          {: parser.errorEn(nleft, nright, "se esperaba '(' para iniciar la llamada al metodo '" + n + "'."); :}
+
+       | IDENTIFICADOR PAREN_A error PUNTO_COMA
+          {: parser.causa("llamada incompleta: se esperaba un argumento o ')'."); :}
+
+       | error PUNTO_COMA
+          {: System.out.println("Sentencia invalida recuperada; se continua con la siguiente sentencia."); :}
+       ;
+
+/* retorno -> 'retornar' expresion ';'  |  'retornar' ';' */
+retorno ::= RETORNAR:r expresion PUNTO_COMA
+          {: parser.retornoConValor(rleft, rright);
+             System.out.println("Regla reconocida: retorno"); :}
+
+       | RETORNAR:r PUNTO_COMA
+          {: parser.retornoVacio(rleft, rright);
+             System.out.println("Regla reconocida: retorno (sin expresion)"); :}
+
+       | RETORNAR error PUNTO_COMA
+          {: parser.causa("se esperaba una expresion valida despues de 'retornar'."); :}
+       ;
+
+/* llamada_metodo -> IDENTIFICADOR '(' ')' | IDENTIFICADOR '(' lista_argumentos ')' */
+llamada ::= IDENTIFICADOR:n PAREN_A PAREN_C
+          {: parser.llamadaReconocida(n, 0, nleft, nright); :}
+
+       | IDENTIFICADOR:n PAREN_A lista_argumentos:a PAREN_C
+          {: parser.llamadaReconocida(n, a.intValue(), nleft, nright); :}
+
+       | IDENTIFICADOR PAREN_A lista_argumentos error
+          {: parser.causa("se esperaba ')' al finalizar los argumentos."); :}
+       ;
+
+/* lista_argumentos -> expresion | lista_argumentos ',' expresion */
+lista_argumentos ::= expresion
+          {: RESULT = Integer.valueOf(1); :}
+
+       | lista_argumentos:l COMA expresion
+          {: RESULT = Integer.valueOf(parser.combinar(l.intValue(), 1)); :}
+
+       | lista_argumentos COMA error
+          {: parser.causa("se esperaba una expresion despues de ','.");
+             RESULT = Integer.valueOf(-1); :}
+
+       | error
+          {: parser.causa("se esperaba un argumento.");
+             RESULT = Integer.valueOf(-1); :}
+       ;
+
+/* --- ESTRUCTURAS SELECTIVAS --- */
+
+seleccion_simple ::= SI PAREN_A condicion PAREN_C bloque
+                {: System.out.println("Regla reconocida: seleccion_simple"); :}
+            | SI error bloque
+                {: System.out.println("Error sintactico: se esperaba '(' y condicion despues de 'si'."); :}
+            ;
+
+seleccion_doble ::= SI PAREN_A condicion PAREN_C bloque SINO bloque
+              {: System.out.println("Regla reconocida: seleccion_doble"); :}
+          ;
+
+seleccion_multiple ::= SEGUN PAREN_A expresion PAREN_C LLAVE_A lista_casos defecto_item LLAVE_C
+              {: System.out.println("Regla reconocida: seleccion_multiple"); :}
+           | SEGUN PAREN_A expresion PAREN_C LLAVE_A lista_casos LLAVE_C
+              {: System.out.println("Regla reconocida: seleccion_multiple"); :}
+           ;
+
+lista_casos ::= lista_casos caso_item
+         | caso_item
+         ;
+
+caso_item ::= CASO valor DOS_PUNTOS cuerpo_metodo ROMPER PUNTO_COMA
+          {: System.out.println("Regla reconocida: caso"); :}
+       | CASO error DOS_PUNTOS cuerpo_metodo ROMPER PUNTO_COMA
+            {: System.out.println("Error sintactico: se esperaba un valor despues de 'caso'."); :}
+        ;
+
+defecto_item ::= DEFECTO DOS_PUNTOS cuerpo_metodo
+          {: System.out.println("Regla reconocida: defecto"); :}
+         ;
+
+/* --- ESTRUCTURAS ITERATIVAS --- */
+
+ciclo_mientras ::= MIENTRAS PAREN_A condicion PAREN_C bloque
+                {: System.out.println("Regla reconocida: ciclo_mientras"); :}
+           | MIENTRAS error bloque
+                {: System.out.println("Error sintactico: se esperaba ')' en la condicion del ciclo mientras."); :}
+           ;
+
+ciclo_hacer_mientras ::= HACER bloque MIENTRAS PAREN_A condicion PAREN_C PUNTO_COMA
+              {: System.out.println("Regla reconocida: ciclo_hacer_mientras"); :}
+              ;
+
+ciclo_para ::= PARA PAREN_A asignacion condicion PUNTO_COMA actualizacion PAREN_C bloque
+           {: System.out.println("Regla reconocida: ciclo_para"); :}
+         | PARA PAREN_A asignacion error PUNTO_COMA actualizacion PAREN_C bloque
+           {: System.out.println("Error sintactico: se esperaba condicion en el ciclo 'para'."); :}
+         | PARA PAREN_A asignacion condicion PUNTO_COMA error PAREN_C bloque
+           {: System.out.println("Error sintactico: se esperaba la seccion de actualizacion del ciclo 'para'."); :}
+         ;
+
+actualizacion ::= identificador IGUAL expresion
+          ;
+
+/* --- CONDICIONES --- */
+
+condicion ::= expresion
+       {: System.out.println("Regla reconocida: condicion"); :}
+       ;
+
+lectura ::= LEER PAREN_A lista_identificadores PAREN_C PUNTO_COMA
+           {: System.out.println("Regla reconocida: lectura"); :}
+       ;
+
+escritura ::= ESCRIBIR PAREN_A lista_elementos PAREN_C PUNTO_COMA
+           {: System.out.println("Regla reconocida: escritura"); :}
+        ;
+
+asignacion ::= identificador IGUAL expresion PUNTO_COMA
+          {: System.out.println("Regla reconocida: asignacion"); :}
+         | identificador IGUAL error PUNTO_COMA
+          {: System.out.println("Error: expresion invalida o incompleta en la asignacion."); :}
+        ;
+
+lista_identificadores ::= identificador
+                 | lista_identificadores COMA identificador
+                 ;
+
+lista_elementos ::= elemento
+           | lista_elementos COMA elemento
+           ;
+
+elemento ::= expresion ;
+
+expresion ::= expresion O expresion
+       | expresion Y expresion
+       | expresion IGUAL_IGUAL expresion
+       | expresion DIFERENTE expresion
+       | expresion MAYOR expresion
+       | expresion MENOR expresion
+       | expresion MAYOR_IGUAL expresion
+       | expresion MENOR_IGUAL expresion
+       | expresion MAS expresion
+       | expresion MENOS expresion
+       | expresion POR expresion
+       | expresion DIV expresion
+       | expresion MOD expresion
+       | NO expresion
+       | PAREN_A expresion PAREN_C
+       | llamada
+          {: System.out.println("Regla reconocida: llamada_dentro_de_expresion"); :}
+       | identificador
+       | valor
+       ;
+
+tipo ::= INT
+     | FLOAT
+     | DOUBLE
+     | CHAR
+     | BOOLEAN
+     | STRING
+     | identificador
+     ;
+
+identificador ::= IDENTIFICADOR ;
+
+valor ::= NUMERO
+     | DECIMAL
+     | CADENA
+     | CARACTER
+     | VERDADERO
+     | FALSO
+     ;

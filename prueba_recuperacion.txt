@@ -1,0 +1,19 @@
+void metodo1(int a,, int b) {
+    escribir(a);
+}
+
+void metodo2() {
+    escribir("Método válido");
+}
+
+int metodo3(int a, int) {
+    retornar a;
+}
+
+void metodo4 {
+    escribir("sin paréntesis");
+}
+
+void metodo5() {
+    escribir("Este método también se reconoce");
+}
